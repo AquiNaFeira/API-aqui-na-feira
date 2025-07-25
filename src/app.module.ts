@@ -10,11 +10,11 @@ import { EvaluationModule } from './evaluation/evaluation.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { NotificationModule } from './notification/notification.module';
 import { TagsModule } from './tags/tags.module';
-import { DatabaseModule } from './database/database.module';
+import { PrismaService } from './prisma-database/prisma.service';
 
 @Module({
-  imports: [AthModule, UserModule, ClientModule, FeiranteModule, BancoModule, EvaluationModule, FavoriteModule, NotificationModule, TagsModule, DatabaseModule],
+  imports: [AthModule, UserModule, ClientModule, FeiranteModule, BancoModule, EvaluationModule, FavoriteModule, NotificationModule, TagsModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

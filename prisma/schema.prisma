@@ -1,9 +1,214 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [uuidOssp(map: "uuid-ossp"), postgis(map: "postgis")]
+}
+
+model banco {
+  uuid                   String                   @id @db.Uuid
+  descricao              String?
+  nome_fantasia          String?                  @db.VarChar(255)
+  foto_caminho           String?                  @db.VarChar(1000)
+  localizacao            Unsupported("geography")
+  fk_feirante_uuid       String?                  @db.Uuid
+  feirante               feirante?                @relation(fields: [fk_feirante_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  cliente_avalia_banco   cliente_avalia_banco[]
+  cliente_favorita_banco cliente_favorita_banco[]
+  endereco_banco         endereco_banco?
+  notificacao            notificacao[]
+  tags_banco             tags_banco[]
+  whatsapp_banco         whatsapp_banco[]
+
+  @@index([localizacao], map: "idx_banco_localizacao", type: Gist)
+}
+
+model cliente {
+  uuid                   String                   @id @db.Uuid
+  nome                   String                   @db.VarChar(100)
+  cpf                    String                   @unique @db.VarChar(14)
+  data_nascimento        DateTime                 @db.Date
+  idade                  Int?
+  genero                 tipo_genero
+  foto_caminho           String?                  @db.VarChar(1000)
+  fk_usuario_uuid        String                   @unique @db.Uuid
+  usuario                usuario                  @relation(fields: [fk_usuario_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  cliente_avalia_banco   cliente_avalia_banco[]
+  cliente_favorita_banco cliente_favorita_banco[]
+  endereco_cliente       endereco_cliente?
+  notificacao_cliente    notificacao_cliente[]
+  tags_cliente           tags_cliente[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cliente_avalia_banco {
+  uuid           String   @id @db.Uuid
+  uuid_cliente   String   @db.Uuid
+  uuid_banco     String   @db.Uuid
+  comentario     String?
+  nota           Int?
+  data_avaliacao DateTime @db.Date
+  banco          banco    @relation(fields: [uuid_banco], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  cliente        cliente  @relation(fields: [uuid_cliente], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model cliente_favorita_banco {
+  uuid         String  @id @db.Uuid
+  uuid_cliente String  @db.Uuid
+  uuid_banco   String  @db.Uuid
+  banco        banco   @relation(fields: [uuid_banco], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  cliente      cliente @relation(fields: [uuid_cliente], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([uuid_cliente, uuid_banco])
+}
+
+model dados_prefeitura {
+  matricula        String    @id @db.VarChar(50)
+  nome             String    @db.VarChar(255)
+  cpf              String    @db.VarChar(14)
+  fk_uuid_feirante String?   @unique @db.Uuid
+  feirante         feirante? @relation(fields: [fk_uuid_feirante], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model endereco_banco {
+  uuid_banco String  @id @db.Uuid
+  logradouro String? @db.VarChar(255)
+  setor      String? @db.VarChar(100)
+  numero     String? @db.VarChar(20)
+  banco      banco   @relation(fields: [uuid_banco], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model endereco_cliente {
+  uuid_cliente String  @id @db.Uuid
+  logradouro   String? @db.VarChar(255)
+  numero       String? @db.VarChar(20)
+  bairro       String? @db.VarChar(100)
+  cidade       String? @db.VarChar(100)
+  estado       String? @db.VarChar(100)
+  pais         String? @db.VarChar(100)
+  cliente      cliente @relation(fields: [uuid_cliente], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model endereco_feirante {
+  uuid_feirante String   @id @db.Uuid
+  logradouro    String?  @db.VarChar(255)
+  numero        String?  @db.VarChar(20)
+  bairro        String?  @db.VarChar(100)
+  cidade        String?  @db.VarChar(100)
+  estado        String?  @db.VarChar(100)
+  pais          String?  @db.VarChar(100)
+  feirante      feirante @relation(fields: [uuid_feirante], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model feirante {
+  uuid                 String             @id @db.Uuid
+  nome                 String             @db.VarChar(100)
+  cpf                  String             @unique @db.VarChar(14)
+  cnpj                 String?            @unique @db.VarChar(18)
+  matricula_prefeitura String             @unique @db.VarChar(255)
+  data_nascimento      DateTime           @db.Date
+  idade                Int?
+  genero               tipo_genero
+  foto_caminho         String?            @db.VarChar(1000)
+  fk_usuario_uuid      String?            @unique @db.Uuid
+  banco                banco[]
+  dados_prefeitura     dados_prefeitura?
+  endereco_feirante    endereco_feirante?
+  usuario              usuario?           @relation(fields: [fk_usuario_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model notificacao {
+  id_notificacao           Int                   @id @default(autoincrement())
+  entidade_expedidora_uuid String?               @db.Uuid
+  mensagem                 String
+  banco                    banco?                @relation(fields: [entidade_expedidora_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  notificacao_cliente      notificacao_cliente[]
+  notificacao_usuario      notificacao_usuario[]
+}
+
+model notificacao_cliente {
+  id_notificacao Int
+  uuid_cliente   String      @db.Uuid
+  notificacao    notificacao @relation(fields: [id_notificacao], references: [id_notificacao], onDelete: NoAction, onUpdate: NoAction)
+  cliente        cliente     @relation(fields: [uuid_cliente], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id_notificacao, uuid_cliente])
+}
+
+model notificacao_usuario {
+  id_notificacao Int
+  uuid_usuario   String      @db.Uuid
+  notificacao    notificacao @relation(fields: [id_notificacao], references: [id_notificacao], onDelete: NoAction, onUpdate: NoAction)
+  usuario        usuario     @relation(fields: [uuid_usuario], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id_notificacao, uuid_usuario])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+model tags {
+  id           Int            @id @default(autoincrement())
+  descricao    String         @unique @db.VarChar(255)
+  tags_banco   tags_banco[]
+  tags_cliente tags_cliente[]
+}
+
+model tags_banco {
+  id_tag     Int
+  uuid_banco String @db.Uuid
+  tags       tags   @relation(fields: [id_tag], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  banco      banco  @relation(fields: [uuid_banco], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id_tag, uuid_banco])
+}
+
+model tags_cliente {
+  id_tag       Int
+  uuid_cliente String  @db.Uuid
+  tags         tags    @relation(fields: [id_tag], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cliente      cliente @relation(fields: [uuid_cliente], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id_tag, uuid_cliente])
+}
+
+model usuario {
+  uuid                String                @id @db.Uuid
+  email               String                @unique @db.VarChar(191)
+  senha               String                @db.VarChar(500)
+  classificacao       tipo_classificacao
+  cliente             cliente?
+  feirante            feirante?
+  notificacao_usuario notificacao_usuario[]
+}
+
+model whatsapp_banco {
+  uuid_banco    String @db.Uuid
+  link_whatsapp String @db.VarChar(191)
+  banco         banco  @relation(fields: [uuid_banco], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([uuid_banco, link_whatsapp])
+}
+
+enum tipo_classificacao {
+  Cliente
+  Feirante
+}
+
+enum tipo_genero {
+  Masculino
+  Feminino
+  Transg_nero @map("Transgênero")
+  N_o_Binario @map("Não Binario")
 }
